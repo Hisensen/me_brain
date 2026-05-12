@@ -1,9 +1,12 @@
 #!/usr/bin/env node
 'use strict';
-// SessionStart hook：开会话 → 挑最相关的卡片 → 打印到 stdout（会被注入进会话上下文）。
+// SessionStart hook：开会话 → 挑最相关的卡片 → 打印到 stdout（会被注入进会话上下文），
+// 同时把这份"给 cc 的简报"写到 ~/.me/CONTEXT.md（你随时能打开看 cc 被告知了啥）。
 // 必须快：纯文件读，不调 LLM。永远 exit 0。
 const fs = require('fs');
+const path = require('path');
 const L = require('./lib');
+const CONTEXT_FILE = path.join(L.ME_DIR, 'CONTEXT.md');
 
 if (process.env.MEBRAIN_NESTED) process.exit(0);
 
@@ -60,6 +63,12 @@ try {
     `用户也可以直接 \`/me show\` 看全部、\`/me save "随手一句"\`、\`/me forget <名字>\`、\`/me distill\`（净化）。\n`;
 
   process.stdout.write(out);
+
+  // 同时落一份文件镜像：~/.me/CONTEXT.md —— 随时能打开看 cc 被告知了啥
+  try {
+    const stamp = `<!-- 这是 MeBrain 每次 cc 开会话时自动生成的"给 cc 的简报"快照。每次开会话会被覆盖。\n     最后更新：${new Date().toISOString()}  ｜  当时项目：${proj}  ｜  注入卡片数：${picked.length}/${relevant.length} -->\n\n`;
+    fs.writeFileSync(CONTEXT_FILE, stamp + out);
+  } catch {}
 
   // 记一笔命中：bump last_seen / hit_count
   const t = L.today();
