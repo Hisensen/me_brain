@@ -9,7 +9,7 @@ const SETTINGS = path.join(os.homedir(), '.claude', 'settings.json');
 const s = JSON.parse(fs.readFileSync(SETTINGS, 'utf8'));
 let changed = false;
 
-for (const ev of ['SessionStart', 'SessionEnd']) {
+for (const ev of ['SessionStart', 'SessionEnd', 'UserPromptSubmit']) {
   if (!s.hooks || !s.hooks[ev]) continue;
   const before = s.hooks[ev].length;
   s.hooks[ev] = s.hooks[ev].filter(group => {

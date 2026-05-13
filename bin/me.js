@@ -180,26 +180,92 @@ function cmdDistill() {
   console.log(`净化完成：合并/删除归档 ${archived} 张，重写 ${updated} 张，新建 ${created} 张，老化归档 ${aged} 张。现存 ${L.readAllCards().length} 张。`);
 }
 
+function cmdTodo() {
+  const sub = (args[1] || '').toLowerCase();
+  // me todo list / me todo （无参也当 list）
+  if (!sub || sub === 'list' || sub === 'ls') {
+    const all = L.readAllCards().filter(c => c.type === 'todo' && (c.status || 'pending') === 'pending');
+    if (!all.length) { console.log('（没有活跃 TODO。立一条：me todo "<内容>"）'); return; }
+    all.sort((a, b) => String(b.created || '').localeCompare(String(a.created || '')));
+    console.log(`活跃 TODO（${all.length} 条）：\n`);
+    for (const c of all) {
+      const scopeTag = c.scope && c.scope.startsWith('project:') ? ` _(${c.scope})_` : '';
+      console.log(`□ ${c.name}${scopeTag}   {created=${c.created}, conf=${c.confidence}}`);
+      if (c.body && c.body !== c.name) console.log(`    ${c.body.replace(/\s+/g, ' ').slice(0, 200)}`);
+    }
+    console.log(`\n完成： me done <关键词>   ｜   作废： me forget <关键词>`);
+    return;
+  }
+  // me todo review —— v0.3 stub
+  if (sub === 'review') {
+    console.log('（候选审核功能在 v0.3 实现，现在 quick-todo 实时口令直接立 TODO，不走候选。）');
+    return;
+  }
+  // me todo <内容>  立一条
+  L.ensureDirs();
+  const { flags, rest } = parseFlags(args.slice(1));
+  const text = rest.join(' ').trim();
+  if (!text) { console.error('用法: me todo "<内容>"   ｜   me todo list   ｜   me done <关键词>'); process.exit(1); }
+  const scope = (typeof flags.scope === 'string' && flags.scope) ? flags.scope : 'global';
+  const card = {
+    type: 'todo',
+    name: text.slice(0, 60),
+    description: text.slice(0, 200),
+    scope,
+    confidence: 9,
+    source: flags.source || 'user-stated',
+    status: 'pending',
+    body: text,
+  };
+  const fp = L.writeCard(card, L.MEMORY_DIR);
+  console.log(`□ 已立 TODO：${card.name}`);
+  console.log(`  → ${fp}`);
+}
+
+function cmdDone() {
+  const needle = args.slice(1).join(' ').trim();
+  if (!needle) { console.error('用法: me done <名字关键词>'); process.exit(1); }
+  // 只在活跃 todo 里找
+  const all = L.readAllCards().filter(c => c.type === 'todo' && (c.status || 'pending') === 'pending');
+  const lower = needle.toLowerCase();
+  const c = all.find(x => (x.name || '').toLowerCase() === lower)
+    || all.find(x => (x.name || '').toLowerCase().includes(lower))
+    || all.find(x => (x.body || '').toLowerCase().includes(lower));
+  if (!c) { console.error(`没找到匹配 "${needle}" 的活跃 TODO。me todo list 看清单。`); process.exit(1); }
+  c.status = 'done';
+  c.done_at = L.today();
+  try { L.updateCardFile(c); } catch {}
+  L.moveToArchive(c);
+  console.log(`✓ 已完成并归档：${c.name}`);
+}
+
 function cmdHelp() {
   console.log(`MeBrain — 你的个人长期记忆库（数据在 ~/.me/）
 
   me save "随手一句"                          快速记一条（粗卡片，distill 会整理）
   me save --type pitfall --name "..." \\        结构化记一条（cc 会用这个形式）
           --desc "..." --scope global -- 正文
-  me show [type]                              看所有卡片（可按 type 过滤：pitfall/preference/decision/project/fact/reference/note）
+  me show [type]                              看所有卡片（可按 type 过滤：pitfall/preference/decision/project/fact/reference/note/todo）
   me forget <名字关键词>                       归档一条（挪到 ~/.me/archive/，不是真删）
   me why <名字关键词>                          看某条卡片的来源、正文、原始会话
   me distill                                   立即净化：去重/合并/标记过时（调一次 LLM）
   me log                                       看采集日志（~/.me/.capture.log）
+
+  TODO（v0.2 新加）：
+    me todo "<内容>"                            立一条 TODO（也可在对话里说"提醒我 X / 记一下 X / 待办：X"实时立）
+    me todo list                                看所有活跃 TODO
+    me done <名字关键词>                        标完成并归档
+
   me help                                      本帮助
 
   自动部分（装了 hook 之后）：
-    · 每次 cc 会话结束 → 自动从对话里提炼卡片入库（后台跑，看 me log）
-    · 每次 cc 开会话   → 自动注入相关卡片，让 cc 开场就懂你
+    · 每次 cc 发消息       → 实时扫描"提醒我/记一下/待办："立 TODO
+    · 每次 cc 会话结束     → 后台从对话里提炼卡片入库（看 me log）
+    · 每次 cc 开会话       → 自动注入相关卡片+活跃 TODO，cc 开场就懂你
 
   调参：编辑 ~/.me/config.json   ｜   不想被吃的目录/词：编辑 ~/.me/blocklist
 `);
 }
 
-const table = { save: cmdSave, show: cmdShow, list: cmdList, forget: cmdForget, why: cmdWhy, distill: cmdDistill, log: cmdLog, help: cmdHelp };
+const table = { save: cmdSave, show: cmdShow, list: cmdList, forget: cmdForget, why: cmdWhy, distill: cmdDistill, log: cmdLog, todo: cmdTodo, done: cmdDone, help: cmdHelp };
 (table[cmd] || cmdHelp)();

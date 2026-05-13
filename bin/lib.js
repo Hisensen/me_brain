@@ -14,7 +14,7 @@ const BLOCKLIST_FILE = path.join(ME_DIR, 'blocklist');
 const CONFIG_FILE = path.join(ME_DIR, 'config.json');
 const CAPTURE_LOG = path.join(ME_DIR, '.capture.log');
 
-const VALID_TYPES = ['pitfall', 'preference', 'decision', 'project', 'fact', 'reference', 'note'];
+const VALID_TYPES = ['pitfall', 'preference', 'decision', 'project', 'fact', 'reference', 'note', 'todo'];
 const DEFAULT_CONFIG = {
   model: 'haiku',          // 采集/净化用的便宜模型
   inject_max_cards: 30,    // SessionStart 注入多少张
@@ -74,7 +74,7 @@ function parseCard(text, filePath) {
 
 function serializeCard(c) {
   const keys = ['name', 'description', 'type', 'created', 'last_seen', 'hit_count',
-    'confidence', 'source', 'origin_session', 'scope'];
+    'confidence', 'source', 'origin_session', 'scope', 'status', 'done_at'];
   let fm = '---\n';
   for (const k of keys) if (c[k] !== undefined && c[k] !== '') fm += `${k}: ${c[k]}\n`;
   fm += '---\n\n';
@@ -106,6 +106,7 @@ function writeCard(c, dir = MEMORY_DIR) {
   c.source = c.source || 'inferred';
   c.scope = c.scope || 'global';
   if (!VALID_TYPES.includes(c.type)) c.type = 'note';
+  if (c.type === 'todo' && !c.status) c.status = 'pending';
   const fileName = `${c.type}-${slugify(c.name)}-${shortId()}.md`;
   const fp = path.join(dir, fileName);
   fs.writeFileSync(fp, serializeCard(c));
