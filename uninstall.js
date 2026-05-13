@@ -13,7 +13,11 @@ for (const ev of ['SessionStart', 'SessionEnd', 'UserPromptSubmit']) {
   if (!s.hooks || !s.hooks[ev]) continue;
   const before = s.hooks[ev].length;
   s.hooks[ev] = s.hooks[ev].filter(group => {
-    group.hooks = (group.hooks || []).filter(h => !(h.command || '').includes('mebrain/bin/'));
+    // 匹配三个脚本中任意一个 —— 跟具体目录解耦（mebrain/ 或 .me_brain/ 都行）
+    group.hooks = (group.hooks || []).filter(h => {
+      const c = h.command || '';
+      return !(c.includes('/bin/inject.js') || c.includes('/bin/capture-hook.sh') || c.includes('/bin/quick-todo.js'));
+    });
     return group.hooks.length > 0;
   });
   if (s.hooks[ev].length !== before) changed = true;

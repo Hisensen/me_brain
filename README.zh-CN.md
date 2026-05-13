@@ -26,14 +26,25 @@
 
 ## 装
 
+**一行装**（克隆到 `~/.me_brain`，幂等 —— 想升级直接重跑就行）：
+
 ```bash
-git clone https://github.com/Hisensen/me_brain.git
-cd me_brain
-node install.js
-# 然后完全退出 Claude Code 再重开。
+curl -fsSL https://raw.githubusercontent.com/Hisensen/me_brain/master/install.sh | bash
 ```
 
-`install.js` 是幂等的。它会改 `~/.claude/settings.json`（先自动备份），把 `/me` skill 部署到 `~/.claude/skills/me/`。
+然后完全退出 Claude Code 再重开。
+
+**手动装**（不信 `curl | bash` 就走这个）：
+
+```bash
+git clone https://github.com/Hisensen/me_brain.git ~/.me_brain
+cd ~/.me_brain
+node install.js
+```
+
+不管哪种走法，`install.js` 都是幂等的：改 `~/.claude/settings.json`（先自动备份）+ 部署 `/me` skill 到 `~/.claude/skills/me/`。需要 Node.js 和 `git`；`claude` CLI 用来自动采集和净化，没装也能跑（只是采集/distill 会跳过，注入和实时 TODO 不受影响）。
+
+**升级**：再跑一遍上面那行 `curl`，或者 `cd ~/.me_brain && git pull && node install.js`。
 
 ---
 

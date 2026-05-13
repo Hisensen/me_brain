@@ -32,20 +32,21 @@ s.hooks.SessionStart = s.hooks.SessionStart || [];
 s.hooks.SessionEnd = s.hooks.SessionEnd || [];
 s.hooks.UserPromptSubmit = s.hooks.UserPromptSubmit || [];
 
+// 子串只匹配脚本名，跟具体目录解耦 —— 不管是 mebrain/、.me_brain/ 还是别的位置，都能识别
 let changed = false;
-if (!has(s.hooks.SessionStart, 'mebrain/bin/inject.js')) {
+if (!has(s.hooks.SessionStart, '/bin/inject.js')) {
   s.hooks.SessionStart.push({ matcher: '', hooks: [{ type: 'command', command: injectCmd, timeout: 10 }] });
   changed = true;
   console.log('+ SessionStart → inject.js');
 } else console.log('= SessionStart hook 已存在，跳过');
 
-if (!has(s.hooks.SessionEnd, 'mebrain/bin/capture-hook')) {
+if (!has(s.hooks.SessionEnd, '/bin/capture-hook.sh')) {
   s.hooks.SessionEnd.push({ matcher: '', hooks: [{ type: 'command', command: captureCmd, timeout: 5 }] });
   changed = true;
   console.log('+ SessionEnd → capture.js（后台跑）');
 } else console.log('= SessionEnd hook 已存在，跳过');
 
-if (!has(s.hooks.UserPromptSubmit, 'mebrain/bin/quick-todo.js')) {
+if (!has(s.hooks.UserPromptSubmit, '/bin/quick-todo.js')) {
   s.hooks.UserPromptSubmit.push({ matcher: '', hooks: [{ type: 'command', command: quickTodoCmd, timeout: 5 }] });
   changed = true;
   console.log('+ UserPromptSubmit → quick-todo.js（实时口令识别）');

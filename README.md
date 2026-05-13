@@ -26,14 +26,25 @@ Everything lives under `~/.me/`. Every card is one Markdown file you can read, e
 
 ## Install
 
+**One-liner** (clones to `~/.me_brain`, idempotent — safe to re-run for upgrades):
+
 ```bash
-git clone https://github.com/Hisensen/me_brain.git
-cd me_brain
-node install.js
-# Then fully quit Claude Code and reopen.
+curl -fsSL https://raw.githubusercontent.com/Hisensen/me_brain/master/install.sh | bash
 ```
 
-`install.js` is idempotent. It patches `~/.claude/settings.json` (backed up first) and deploys the `/me` skill to `~/.claude/skills/me/`.
+Then fully quit Claude Code and reopen.
+
+**Manual** (if you don't trust `curl | bash`):
+
+```bash
+git clone https://github.com/Hisensen/me_brain.git ~/.me_brain
+cd ~/.me_brain
+node install.js
+```
+
+Either way, `install.js` is idempotent. It patches `~/.claude/settings.json` (backed up first) and deploys the `/me` skill to `~/.claude/skills/me/`. Requires Node.js and `git`; the `claude` CLI is needed for auto-capture and distill but not for injection or real-time todos.
+
+**Upgrade** later: just re-run the one-liner, or `cd ~/.me_brain && git pull && node install.js`.
 
 ---
 
