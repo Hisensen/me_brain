@@ -9,6 +9,8 @@ const L = require('./lib');
 
 L.ensureDirs();
 
+const PROJECT_ROOT = path.resolve(__dirname, '..');
+
 function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
 function safeRead(p) { try { return fs.readFileSync(p, 'utf8'); } catch { return ''; } }
 function safeCount(dir) { try { return fs.readdirSync(dir).filter(f => f.endsWith('.md')).length; } catch { return 0; } }
@@ -134,7 +136,7 @@ const html = `<!DOCTYPE html>
 </style></head><body><div class="wrap">
 
 <h1>🧠 MeBrain<span class="v">v0.1 · Approach C</span></h1>
-<p class="sub">个人长期记忆系统 · 快照生成于 ${esc(now.toLocaleString('zh-CN'))} · 数据目录 <code>~/.me/</code> · 代码 <code>~/Desktop/claude_project/mebrain</code></p>
+<p class="sub">个人长期记忆系统 · 快照生成于 ${esc(now.toLocaleString('zh-CN'))} · 数据目录 <code>~/.me/</code> · 代码 <code>${esc(PROJECT_ROOT)}</code></p>
 
 <div class="grid">
   <div class="panel">
@@ -186,7 +188,7 @@ ${cardRows}
 
 <div class="foot">
   用法回顾：<code>/me show</code> 看卡片 · <code>/me save "..."</code> 手动记 · <code>/me forget &lt;名字&gt;</code> 删 · <code>/me why &lt;名字&gt;</code> 看来源 · <code>/me distill</code> 净化 · <code>/me log</code> 看采集日志<br>
-  这个面板本身是静态快照。重新生成：<code>node ~/Desktop/claude_project/mebrain/bin/dashboard.js --open</code>
+  这个面板本身是静态快照。重新生成：<code>node ${esc(path.join(PROJECT_ROOT, 'bin', 'dashboard.js'))} --open</code>
 </div>
 
 </div></body></html>`;

@@ -1,18 +1,18 @@
 ---
 name: me
-description: MeBrain — 用户的个人长期记忆库 + TODO 系统。当用户输入 /me（带子命令 save/show/forget/why/distill/log/todo/done）时调用；也用于在对话中发现关于用户本人的、值得长期记住的信息时，主动提议"要我记下来吗？"并写入。数据在 ~/.me/，由 ~/Desktop/claude_project/mebrain 实现。
+description: MeBrain — 用户的个人长期记忆库 + TODO 系统。当用户输入 /me（带子命令 save/show/forget/why/distill/log/todo/done）时调用；也用于在对话中发现关于用户本人的、值得长期记住的信息时，主动提议"要我记下来吗？"并写入。数据在 ~/.me/，由 {{ME_BRAIN_DIR}} 实现。
 ---
 
 # MeBrain（个人长期记忆 + 实时 TODO）
 
-用户有一个个人长期记忆库（"第二大脑"），数据在 `~/.me/memory/`（每张卡片一个 Markdown 文件），CLI 在 `~/Desktop/claude_project/mebrain/bin/me.js`。
+用户有一个个人长期记忆库（"第二大脑"），数据在 `~/.me/memory/`（每张卡片一个 Markdown 文件），CLI 在 `{{ME_BRAIN_DIR}}/bin/me.js`。
 
 ## 当用户输入 `/me <子命令> ...`
 
 直接运行对应命令并把输出给用户：
 
 ```
-node ~/Desktop/claude_project/mebrain/bin/me.js <子命令> <参数...>
+node {{ME_BRAIN_DIR}}/bin/me.js <子命令> <参数...>
 ```
 
 子命令：
@@ -57,7 +57,7 @@ TODO 是 MeBrain 里**有完成态**的卡片类型（type=todo, status=pending|
 —— 就**简短地问一句**："这个要我记进 MeBrain 吗？"。用户确认后运行结构化的 `save`：
 
 ```bash
-node ~/Desktop/claude_project/mebrain/bin/me.js save \
+node {{ME_BRAIN_DIR}}/bin/me.js save \
   --type <pitfall|preference|decision|project|fact|reference> \
   --name "<3-6 词标题>" \
   --desc "<一句话，将来检索靠它判断相关性>" \

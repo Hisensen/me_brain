@@ -52,12 +52,13 @@ if (!has(s.hooks.UserPromptSubmit, '/bin/quick-todo.js')) {
   console.log('+ UserPromptSubmit → quick-todo.js（实时口令识别）');
 } else console.log('= UserPromptSubmit hook 已存在，跳过');
 
-// 部署 /me skill 文件（每次都覆盖，确保是最新的）
+// 部署 /me skill 文件 —— 把模板里的 {{ME_BRAIN_DIR}} 替换成本机实际安装路径
 try {
   if (fs.existsSync(SKILL_SRC)) {
     fs.mkdirSync(SKILL_DST_DIR, { recursive: true });
+    const tpl = fs.readFileSync(SKILL_SRC, 'utf8');
+    const after = tpl.replace(/\{\{ME_BRAIN_DIR\}\}/g, __dirname);
     const before = fs.existsSync(SKILL_DST) ? fs.readFileSync(SKILL_DST, 'utf8') : '';
-    const after = fs.readFileSync(SKILL_SRC, 'utf8');
     if (before !== after) {
       fs.writeFileSync(SKILL_DST, after);
       console.log(`+ skill 已部署 → ${SKILL_DST}`);
