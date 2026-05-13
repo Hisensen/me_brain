@@ -1,76 +1,170 @@
 # MeBrain
 
-你的个人长期记忆库 + 实时 TODO 系统。被动从 Claude Code 会话里沉淀"关于你本人"的知识（偏好、踩过的坑、决策、项目背景、事实），自动注入回每次新会话，让 cc 越来越懂你；同时支持你随口说"提醒我 X"实时立 TODO，cc 在做完时主动帮你确认。
+> Personal long-term memory for [Claude Code](https://docs.claude.com/en/docs/claude-code). Passively distills facts about *you* from sessions, auto-injects them next time, so Claude gets smarter about you over time.
 
-设计文档见 `../teambrain/DESIGN-personal-brain.md`。当前 v0.2（在 v0.1「Approach C：记忆文件优先」基础上加 TODO 与实时口令识别）。
+[中文 README →](./README.zh-CN.md)
 
-## 装
+Plain Markdown cards. No database, no daemon, no npm dependencies. ~900 lines of Node.
+
+---
+
+## What it does
+
+Three hooks wired into Claude Code:
+
+| Hook | Script | What |
+|---|---|---|
+| `SessionStart` | `inject.js` | Picks the most relevant cards from `~/.me/memory/` and feeds them in as context. File-only, no LLM call. |
+| `SessionEnd` | `capture.js` | Reads the transcript, asks Claude (haiku, cheap) to extract a few cards about *you*, writes them as Markdown files. Runs in background, never blocks session exit. |
+| `UserPromptSubmit` | `quick-todo.js` | Scans your message for line-start triggers (`提醒我 X` / `记一下 X` / `待办：X` / `TODO: X`) and creates a pending todo card before Claude sees the prompt. |
+
+Plus a `/me` slash command and a `me` CLI for manual CRUD.
+
+Everything lives under `~/.me/`. Every card is one Markdown file you can read, edit, or delete by hand.
+
+---
+
+## Install
 
 ```bash
-node install.js      # 装 3 个 hook + 部署 /me skill（自动备份 settings.json）
-# 然后完全退出再重开 Claude Code
+git clone https://github.com/Hisensen/me_brain.git
+cd me_brain
+node install.js
+# Then fully quit Claude Code and reopen.
 ```
 
-部署内容：
-- `SessionStart` hook → `inject.js`（注入记忆 + 活跃 TODO）
-- `SessionEnd` hook → `capture-hook.sh`（后台采集知识卡）
-- `UserPromptSubmit` hook → `quick-todo.js`（实时口令识别）
-- `~/.claude/skills/me/SKILL.md`（`/me` 命令的 skill 定义）
+`install.js` is idempotent. It patches `~/.claude/settings.json` (backed up first) and deploys the `/me` skill to `~/.claude/skills/me/`.
 
-## 用
+---
 
-平时啥都不用管 —— 会话结束它自己提炼知识，新开会话它自己注入；你说"提醒我 X"它实时立 TODO。偶尔：
+## Use
+
+Most of the time you do nothing — cards get captured at session end and injected at session start.
+
+When you want to inspect or steer:
 
 ```
-/me show                      看它记了啥
-/me save "我习惯用 pnpm"       主动记一条
-/me forget <名字关键词>        删错的（归档，不真删）
-/me why <名字关键词>           看某条的来源
-/me distill                   立即净化（去重/合并/淘汰过时）
-/me log                       看自动采集日志
-
-/me todo "改完 README"         手动立 TODO
-/me todo list                 看活跃 TODO
-/me done <关键词>              标完成并归档
+/me show                       list all cards
+/me save "I prefer pnpm"       save one quickly
+/me save --type pitfall --name "..." --desc "..." --scope global -- <body>
+                               structured save (what Claude uses internally)
+/me forget <keyword>           archive (not delete — moved to ~/.me/archive/)
+/me why <keyword>              show source, body, and the original session jsonl
+/me distill                    LLM pass: de-dup, merge, fix bad descriptions, age out
+/me log                        tail the capture log
+/me todo "ship the README"     new todo
+/me todo list                  active todos
+/me done <keyword>             mark done & archive
 ```
 
-或直接命令行 `node bin/me.js <子命令>`。
+**Realtime todos**: just start a line with `提醒我 X` / `记一下 X` / `待办：X` / `TODO: X` in any Claude Code message. The hook creates the card before Claude even sees the prompt. When you later say "X is done", Claude will ask once: "is the `<X>` todo done?" — answer yes and it auto-archives.
 
-## 实时 TODO 口令（v0.2 新加）
+---
 
-消息**行首**这几种写法 → UserPromptSubmit hook 实时立 TODO（不走 cc）：
-
-- `提醒我 X` / `提醒我，X` / `提醒我一下 X`
-- `记一下 X` / `记下 X`
-- `待办：X`
-- `TODO: X`
-
-立完之后 cc 会在回复时给你一行确认；下次开会话注入也会带出来。完成时你随口说"X 改完了"，cc 会主动问"那条 X 的 TODO 完成了吗？"，你说"是" → 自动归档。
-
-## 数据在哪
+## How it stores things
 
 ```
 ~/.me/
-  memory/        现存卡片，每张一个 .md（含 todo 卡）
-  candidates/    （v0.3 候选审核用，目前预留）
-  archive/       被 forget / done / 净化淘汰的
-  blocklist      不想被吃的目录关键词或词，每行一个
-  config.json    调参：model / inject_max_cards / capture_min_chars / prune_after_days
-  .capture.log   自动采集日志（含 quick-todo 实时日志）
+  memory/        active cards — 1 file = 1 card, plain Markdown
+  archive/       forgotten / aged-out cards (timestamped filenames)
+  blocklist      directories/words you don't want captured
+  config.json    tuning knobs
+  CONTEXT.md     mirror of the last injection — see what Claude was told
+  .capture.log   automatic capture log
 ```
 
-## 卸
+A card looks like:
+
+```markdown
+---
+name: Uses FlClash for proxy
+type: fact
+created: 2026-05-10
+last_seen: 2026-05-13
+hit_count: 5
+confidence: 9
+source: inferred
+origin_session: 7e3a...
+scope: global
+---
+
+User is behind GFW, uses FlClash via 127.0.0.1:7890 for HTTP/HTTPS/SOCKS.
+Occasional TLS errors mean a proxy node is bad — switch nodes.
+```
+
+**Card types**: `fact`, `preference`, `pitfall`, `decision`, `project`, `reference`, `note`, `todo`.
+
+**Scope**: `global` (about you, cross-project) or `project:<git-root-name>` (current project only). The injector filters by current `cwd` so project cards only show up in their own project.
+
+---
+
+## Architecture
+
+```
+Claude Code session
+  ├─ UserPromptSubmit  → quick-todo.js   (regex match, synchronous)
+  ├─ SessionEnd        → capture.js      (one LLM call, background)
+  └─ SessionStart      → inject.js       (file read only, no LLM)
+                            ↑
+                      /me CLI (me.js)
+                      manual CRUD
+```
+
+- `bin/inject.js` — sorts cards by scope-match → `confidence` → `last_seen`, takes the top N (default 30), renders them grouped by type. Mirrors the output to `~/.me/CONTEXT.md` so you can always inspect what Claude was told.
+- `bin/capture.js` — one `claude -p --model haiku` call per session end, JSON array of cards out. Includes a digest of existing cards in the prompt so the model doesn't duplicate.
+- `bin/quick-todo.js` — line-start regex match. Lines starting with third-person pronouns are treated as narration, not commands, and skipped. Writes a `pending` todo and emits hook-feedback telling Claude to acknowledge.
+- `bin/me.js` — the `/me` CLI (~440 lines).
+- `bin/lib.js` — shared: file IO, frontmatter parse/serialize, Claude subprocess, transcript reader.
+
+Total: ~900 lines of plain Node, zero npm dependencies.
+
+---
+
+## Config (`~/.me/config.json`)
+
+```json
+{
+  "model": "haiku",
+  "inject_max_cards": 30,
+  "capture_min_chars": 250,
+  "prune_after_days": 90
+}
+```
+
+- `model` — which Claude model to use for capture and distill. `haiku` is fast and cheap; switch to `sonnet` for better extraction quality.
+- `inject_max_cards` — max cards injected at session start.
+- `capture_min_chars` — transcripts shorter than this skip capture entirely.
+- `prune_after_days` — during `distill`, cards with `hit_count: 0` older than this get archived.
+
+**Blocklist** (`~/.me/blocklist`): one keyword per line. If your `cwd` contains any of them, capture and todo extraction are skipped. Use it to protect private directories.
+
+---
+
+## What's not built yet
+
+Listed in priority order, all deferred until there's a real need:
+
+- `me ingest <path>` — bulk-eat local files/dirs to seed memory.
+- **PreToolUse interception** — "you tripped this last time, want to reconsider?"
+- **Source connectors** — browser history, Obsidian vault, etc.
+- **Real retrieval** — currently scope-filter + confidence-sort. Degrades past ~30 cards. Needs keyword/embedding match.
+- **Calibrator** — confidence is set once at capture and never updated. No hit/miss feedback loop.
+- `me todo review` — queue captured candidates for manual approval before promoting.
+
+See [`DESIGN-personal-brain.md`](./DESIGN-personal-brain.md) for the original design notes (in Chinese) and the rationale for picking the minimal file-only approach over a full memory engine.
+
+---
+
+## Uninstall
 
 ```bash
-node uninstall.js    # 摘掉 3 个 hook，数据 ~/.me/ 保留
-rm -rf ~/.claude/skills/me   # 删 skill（可选）
+node uninstall.js          # remove hooks from settings.json, keep your ~/.me data
+rm -rf ~/.claude/skills/me # optional: remove the /me skill
+rm -rf ~/.me               # optional: nuke all captured memory
 ```
 
-## 还没做的（见设计文档）
+---
 
-- v0.3：`/me todo review` 候选审核（hook 用 LLM 嗅探弱信号的提醒）
-- `me ingest <path>` —— 把本机文件/文件夹吃进去（跨源第一步）
-- PreToolUse 主动提醒（要重蹈覆辙时拦一句"你之前踩过这个坑"）
-- 浏览器历史 / Obsidian / 等更多源连接器
-- 更聪明的检索（卡片多了之后上关键词/embedding 匹配，抄 TeamBrain 的 matcher）
-- 真正的 calibrator（抄 TeamBrain）
+## License
+
+MIT — see [LICENSE](./LICENSE).

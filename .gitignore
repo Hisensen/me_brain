@@ -1,2 +1,17 @@
+# Local state, not part of the project
+.claude/
+.teamagent/
+CLAUDE.md
+
+# OS / editor noise
+.DS_Store
+*.swp
+.idea/
+.vscode/
+
+# Node (we have no deps but just in case)
 node_modules/
+npm-debug.log*
+
+# General
 *.log
